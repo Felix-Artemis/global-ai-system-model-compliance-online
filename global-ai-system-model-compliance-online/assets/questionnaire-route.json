@@ -1,0 +1,209 @@
+{
+  "version": "2.5.1",
+  "mode_step": "P0",
+  "mode_values": {
+    "light": "轻量版初步评估",
+    "full": "全量版评估"
+  },
+  "legacy_missing_mode": "full",
+  "entry_steps": ["P0", "P1", "P2", "P3", "P4"],
+  "entry_rounds": [["P0"], ["P1", "P2", "P3", "P4"]],
+  "public_entry_steps": ["P1", "P2", "P3", "P4"],
+  "public_entry_rounds": [["P1", "P2", "P3", "P4"]],
+  "backend_registration_keys": ["R1", "R2", "R3", "R4"],
+  "visible_question_slot_count": 55,
+  "question_policy": {
+    "modes": ["light", "full"],
+    "light_mode_group_count": 2,
+    "light_mode_questions_per_group": 5,
+    "light_mode_total_question_slots": 10,
+    "full_mode_group_count_range": [3, 7],
+    "layers": ["observable_business_facts", "gated_technical_detail"],
+    "max_questions_per_round": 8,
+    "min_questions_per_new_round": 2,
+    "send_questions_in_groups": true,
+    "send_one_question_at_a_time": false,
+    "collect_evidence_after_key_facts": true,
+    "technical_detail_gate_key": "P6",
+    "technical_detail_requires_explicit_yes": true,
+    "unknown_is_submitted_and_never_reasked": true,
+    "retain_answered_rows": true,
+    "send_only_unanswered_or_conflicting_rows": true
+  },
+  "fact_record_schema": {
+    "description": "每条事实由后台随答案保存；这些字段不是要求业务人员作法律判断。",
+    "required_fields": [
+      "respondent_identity",
+      "product_operator",
+      "end_user",
+      "model_developer_or_controller",
+      "vendor_or_partner",
+      "jurisdiction",
+      "as_of_time",
+      "source",
+      "certainty"
+    ],
+    "certainty_values": ["confirmed", "reported", "uncertain", "conflicting"],
+    "role_separation": [
+      "skill_filler",
+      "product_operator",
+      "product_end_user",
+      "model_developer_or_controller",
+      "technical_vendor",
+      "co_brand_or_partner"
+    ],
+    "evidence_fields": ["evidence_name", "evidence_date", "evidence_location"]
+  },
+  "route_lock_policy": {
+    "lock_after_entry": true,
+    "lock_after_backend_registration": true,
+    "lock_basis": ["P0", "P1", "P2", "P3", "P4", "R1", "R2", "R3", "R4"],
+    "backend_registration_required": true,
+    "backend_registration_is_auto_derived": true,
+    "signature_required": true,
+    "locked_state_fields": ["route_signature", "locked_total_groups", "enabled_group_ids"],
+    "entry_changes_after_lock": "record_conflict_and_request_correction; do_not_silently_change_total_groups",
+    "signature_algorithm": "sha256(canonical_entry_and_enabled_group_ids)"
+  },
+  "progress_policy": {
+    "route_locked_after": "P1,P2,P3,P4 plus generated or explicitly confirmed R1,R2,R3,R4",
+    "entry_status_labels": {
+      "complete": "已确认",
+      "submitted_uncertain": "已提交，待内部核实",
+      "received_needs_completion": "已提交，还需补充",
+      "not_received": "尚未提交",
+      "conflict": "需要更正"
+    },
+    "group_complete_when": "all_assigned_rows_have_a_submitted_answer_or_are_recorded_not_applicable_with_reason",
+    "unknown_answer_counts_as_submitted_but_remains_pending": true,
+    "unknown_answer_is_not_reasked": true,
+    "partial_group_rule": "retain_answered_rows_and_send_only_unanswered_or_conflicting_rows",
+    "conflicting_rows_count_as": "unanswered_until_corrected",
+    "not_yet_sent_rounds": "do_not_count_as_missing_until_the_round_is_assigned"
+  },
+  "light_group_templates": [
+    {
+      "id": "LT1",
+      "title": "产品、使用者和内容去向",
+      "keys": ["P5", "B1", "B2", "B3", "C1"],
+      "rounds": [["P5", "B1", "B2", "B3", "C1"]],
+      "condition": "always"
+    },
+    {
+      "id": "LT2",
+      "title": "透明度和额外风险快速检查",
+      "keys": ["C2", "C3", "D0", "E0", "F0"],
+      "rounds": [["C2", "C3", "D0", "E0", "F0"]],
+      "condition": "always"
+    }
+  ],
+  "full_group_templates": [
+    {
+      "id": "T1",
+      "title": "产品和用户",
+      "keys": ["P5", "B1", "B2", "B3", "A1", "A2", "A3", "A4", "P6"],
+      "rounds": [
+        ["P5", "B1", "B2", "B3"],
+        ["A1", "A2", "A3", "A4", "P6"]
+      ],
+      "quick_keys": ["P5", "B1", "B2", "B3"],
+      "followup_keys": ["A1", "A2", "A3", "A4", "P6"],
+      "condition": "always"
+    },
+    {
+      "id": "T2",
+      "title": "聊天页面和回答内容",
+      "keys": ["B4", "C1", "C2"],
+      "rounds": [
+        ["B4", "C1", "C2"]
+      ],
+      "quick_keys": ["B4", "C1", "C2"],
+      "followup_keys": [],
+      "condition": "always"
+    },
+    {
+      "id": "T3",
+      "title": "人工智能标识、保存和证据",
+      "keys": ["C3", "C4", "C5", "L2"],
+      "rounds": [
+        ["C3", "C4", "C5", "L2"]
+      ],
+      "quick_keys": ["C3", "C4"],
+      "followup_keys": ["C5", "L2"],
+      "condition": "always"
+    },
+    {
+      "id": "T4",
+      "title": "欧盟产品用途和系统使用",
+      "keys": ["D1", "D2", "D3", "D4"],
+      "rounds": [
+        ["D1", "D2", "D3", "D4"]
+      ],
+      "quick_keys": ["D1", "D2", "D3"],
+      "followup_keys": ["D4"],
+      "condition": "include_system"
+    },
+    {
+      "id": "T5",
+      "title": "模型来源、提供方式和控制权",
+      "keys": ["E1", "E2", "E3", "E4", "E5"],
+      "rounds": [
+        ["E1", "E3"],
+        ["E2", "E4", "E5"]
+      ],
+      "quick_keys": ["E1", "E3"],
+      "followup_keys": ["E2", "E4", "E5"],
+      "condition": "include_model"
+    },
+    {
+      "id": "T6",
+      "title": "个人信息、境外访问和供应商数据流",
+      "keys": ["F1", "F4", "H1", "H3", "F2", "F3", "G1", "H4", "F5", "G2", "G3"],
+      "rounds": [
+        ["F1", "F4", "H1", "H3"],
+        ["F2", "F3", "G1", "H4"],
+        ["F5", "G2", "G3"]
+      ],
+      "quick_keys": ["F1", "F4", "H1", "H3"],
+      "followup_keys": ["F2", "F3", "G1", "H4", "F5", "G2", "G3"],
+      "condition": "include_ancillary"
+    },
+    {
+      "id": "T7",
+      "title": "其他相关事项和材料确认",
+      "keys": ["H2", "I1", "I2", "I3", "J1", "J2", "J3", "J4", "K1", "K2", "L1"],
+      "rounds": [
+        ["H2", "I1", "I2", "I3"],
+        ["J1", "J2", "J3", "J4", "L1"],
+        ["K1", "K2"]
+      ],
+      "quick_keys": ["H2", "I1", "I2", "I3"],
+      "followup_keys": ["J1", "J2", "J3", "J4", "K1", "K2", "L1"],
+      "condition": "include_ancillary"
+    }
+  ],
+  "technical_detail_keys": [
+    "B4", "C5", "L2", "E2", "E4", "E5", "F2", "F3", "F5",
+    "G1", "G2", "G3", "H4", "I3", "J4", "K1", "K2"
+  ],
+  "scope_mapping": {
+    "P2_only_transparency": [],
+    "P2_system": ["include_system"],
+    "P2_model": ["include_model"],
+    "P2_system_and_model": ["include_system", "include_model"],
+    "P2_uncertain": ["include_system", "include_model"],
+    "P3_ancillary": ["include_ancillary"],
+    "P3_uncertain": ["include_ancillary"]
+  },
+  "omitted_theme_reasons": {
+    "system": "轻量版始终通过D0做系统线索初筛；全量版未选择欧盟系统范围时不发送D1至D4详细题，后台记录为未评估。",
+    "model": "轻量版始终通过E0做模型线索初筛；全量版未选择模型范围时不发送E1至E5详细题，后台记录为未评估。",
+    "ancillary": "轻量版始终通过F0做AI平台附属线索初筛；全量版未选择附属筛查时不发送个人信息、跨境、版权、产品责任或Cookie详细题，后台记录为未评估。"
+  },
+  "omitted_detail_reasons": {
+    "light_mode": "本次选择轻量版，只完成业务事实初筛；技术实现、文件版本、服务器、密钥、合同条款和法律角色尚未核验。",
+    "technical_gate_not_enabled": "尚未明确表示能核对技术、数据或合同资料，因此只保留业务事实主线；相关细节进入补证清单，不重复追问业务填写人。"
+  },
+  "entry_progress_message_template": "模式题：{mode_status}；范围入口共 {public_entry_total} 步；已确认 {public_entry_confirmed} 步；已提交待内部核实 {public_entry_pending_verification} 步；尚未提交 {public_entry_not_received} 步；还需提交或更正 {public_entry_submission_remaining} 步。待核项已视为有效提交，不需要重复回答。模式确认后，轻量版固定为2组、每组5题（共10题）；全量版按范围为3至7组。",
+  "progress_message_template": "本次共需完成 {total_groups} 组问卷；当前{current_label}；已完成 {completed_groups} 组；还剩 {remaining_groups} 组问卷。当前轮和整条路线的题号余量会另行显示。"
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Global AI System/Model Compliance"
+  short_description: "业务问卷评估AI透明度、欧盟系统与模型及附属数据风险"
+  default_prompt: "使用 $global-ai-system-model-compliance 评估这个AI项目；先只让我选择轻量版、全量版或不确定，再按组提供逐行可选项和业务自测表。所有业务可见问题和表格必须使用渲染器生成的公开版本，不能手写主表或暴露内部题号、路线键或登记键（P0至P6、R1至R4、LT/T组键）；开始问题这一行对业务只显示‘开始问题’，不显示其内部键。公开表必须保留‘填写注释（给业务部门）’列，不能用分号压缩选项，每个选项单独一行；业务消息不得出现星号或下划线强调。路线锁定后首行必须写总组数、当前组、已完成组、还剩组数和本轮待答题数；发送前通过业务消息格式检查。"
+policy:
+  allow_implicit_invocation: true

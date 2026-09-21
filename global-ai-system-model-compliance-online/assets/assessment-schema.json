@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/eu-ai-compliance-assessment/assessment-schema.json",
+  "title": "统一三层 AI 合规评估结果",
+  "description": "机器可读的三层评估结果：第一层中欧加州 AI 透明度，第二层欧盟 AI Act 系统层与 GPAI 模型层，第三层围绕实际数据流的 GDPR/CCPA/CPRA、跨境传输及美国敏感数据限制。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "assessment", "decision_policy", "scope", "facts", "laws", "roles", "obligations", "risks", "actions", "evidence", "conclusion", "layer_results"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment_id", "created_at", "knowledge_cutoff"],
+      "properties": {
+        "assessment_id": {"type": "string", "minLength": 1},
+        "project_name": {"type": "string"},
+        "mode": {"type": "string", "enum": ["light", "full"], "description": "由P0锁定的交付模式；旧记录缺失时按全量版兼容读取。"},
+        "incomplete": {"type": "boolean", "description": "仅用于保存首轮/迁移中的不完整记录；不允许据此给出上线结论。"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "knowledge_cutoff": {"type": "string", "format": "date"},
+        "language": {"type": "string", "enum": ["zh-CN", "en", "zh-CN+en"]},
+        "prepared_by": {"type": "string"}
+      }
+    },
+    "decision_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_fact_rule", "strict_default_for_triggers", "unconditional_compliance_requires_verified_facts", "legal_uncertainty_rule"],
+      "properties": {
+        "unknown_fact_rule": {"type": "string", "const": "do_not_assume_fact;conditional_obligation;strictest_trigger"},
+        "strict_default_for_triggers": {"type": "boolean", "const": true},
+        "unconditional_compliance_requires_verified_facts": {"type": "boolean", "const": true},
+        "legal_uncertainty_rule": {"type": "string", "const": "flag_interpretive_uncertainty;use_conservative_position;seek_specialist_review"},
+        "unknown_fact_statuses": {"type": "array", "items": {"type": "string", "enum": ["unknown", "pending_verification", "contradictory"]}, "uniqueItems": true, "default": ["unknown", "pending_verification", "contradictory"]},
+        "strict_default_scope": {"type": "string", "enum": ["trigger_only", "all_unknowns_for_warning"], "default": "trigger_only"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layers", "jurisdictions", "future_effective_dates"],
+      "properties": {
+        "layers": {
+          "type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true,
+          "items": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+          "allOf": [
+            {"contains": {"const": "layer1_ai_transparency"}},
+            {"contains": {"const": "layer2_eu_ai_act_system_model"}},
+            {"contains": {"const": "layer3_dataflow_adjacent"}}
+          ]
+        },
+        "jurisdictions": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "enum": ["CN_MAINLAND", "EU", "US_CALIFORNIA", "US_FEDERAL", "US_OTHER", "GLOBAL"]}
+        },
+        "out_of_scope": {"type": "array", "items": {"type": "string"}},
+        "future_effective_dates": {
+          "type": "array", "items": {"$ref": "#/$defs/futureDate"}
+        }
+      }
+    },
+    "layer_results": {
+      "type": "array",
+      "description": "每一层的机器可读结论，便于入口路由和报告模板直接渲染。",
+      "minItems": 3,
+      "maxItems": 3,
+      "allOf": [
+        {"contains": {"type": "object", "required": ["layer"], "properties": {"layer": {"const": "layer1_ai_transparency"}}}},
+        {"contains": {"type": "object", "required": ["layer"], "properties": {"layer": {"const": "layer2_eu_ai_act_system_model"}}}},
+        {"contains": {"type": "object", "required": ["layer"], "properties": {"layer": {"const": "layer3_dataflow_adjacent"}}}}
+      ],
+      "items": {"$ref": "#/$defs/layerResult"}
+    },
+    "transparency_controls": {
+      "type": "array",
+      "description": "第一层透明度的机器可读标记和验证控制；技术方案不是法律唯一格式。",
+      "items": {"$ref": "#/$defs/machineReadableControl"}
+    },
+    "questionnaire_responses": {
+      "type": "array",
+      "description": "可选的业务自测原始回答；用于保留选择冲突和更正轨迹。",
+      "items": {"$ref": "#/$defs/questionnaireResponse"}
+    },
+    "facts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/fact"}
+    },
+    "data_flows": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/dataFlow"}
+    },
+    "laws": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/law"}
+    },
+    "roles": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/role"}
+    },
+    "obligations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/obligation"}
+    },
+    "risks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/risk"}
+    },
+    "actions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "evidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidence"}
+    },
+    "conclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_status", "risk_level", "launch_decision", "rationale", "blocking_issue_ids", "unknown_fact_ids", "unverified_materials"],
+      "properties": {
+        "overall_status": {"type": "string", "enum": ["compliant", "conditionally_compliant", "not_ready", "high_risk", "insufficient_information"]},
+        "risk_level": {"type": "string", "enum": ["critical", "high", "medium", "low", "unknown"]},
+        "launch_decision": {"type": "string", "enum": ["go", "go_with_conditions", "hold", "not_applicable"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "blocking_issue_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "unknown_fact_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "unverified_materials": {"type": "array", "items": {"type": "string"}},
+        "future_law_warnings": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "layerResult": {
+      "type": "object", "additionalProperties": false, "required": ["layer", "status", "risk_level", "applicable_jurisdictions", "obligation_ids", "risk_ids", "action_ids"],
+      "properties": {
+        "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "status": {"type": "string", "enum": ["not_assessed", "compliant", "conditionally_compliant", "not_ready", "high_risk", "insufficient_information"]},
+        "risk_level": {"type": "string", "enum": ["critical", "high", "medium", "low", "unknown"]},
+        "applicable_jurisdictions": {"type": "array", "items": {"type": "string", "enum": ["CN_MAINLAND", "EU", "US_CALIFORNIA", "US_FEDERAL", "US_OTHER", "GLOBAL"]}, "uniqueItems": true},
+        "obligation_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "risk_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "action_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "notes": {"type": "string"}
+      }
+    },
+    "machineReadableControl": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "content_types", "status", "carrier", "format", "issuer", "system_or_model_id", "version", "created_at_field", "integrity_signature", "verification_endpoint", "persistence_test_status", "persistence_test_scope", "failure_handling", "owner", "evidence_ids"],
+      "properties": {
+        "id": {"type": "string"},
+        "content_types": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "status": {"type": "string", "enum": ["implemented", "partial", "planned", "not_implemented", "unknown"]},
+        "carrier": {"type": "array", "items": {"type": "string", "enum": ["metadata", "watermark", "visible_label", "api_field", "provenance_container", "other"]}, "minItems": 1},
+        "format": {"type": "string", "minLength": 1},
+        "issuer": {"type": "string", "minLength": 1},
+        "system_or_model_id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "created_at_field": {"type": "string", "minLength": 1},
+        "integrity_signature": {"type": "string", "minLength": 1},
+        "verification_endpoint": {"type": "string", "minLength": 1},
+        "persistence_test_status": {"type": "string", "enum": ["passed", "partial", "failed", "not_run", "unknown"]},
+        "persistence_test_scope": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "failure_handling": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      }
+    },
+    "futureDate": {
+      "type": "object", "additionalProperties": false, "required": ["law_id", "effective_from", "status", "current_status", "launch_comparison", "preparation_action", "review_date"],
+      "properties": {
+        "law_id": {"type": "string"}, "effective_from": {"type": "string", "format": "date"},
+        "status": {"type": "string", "enum": ["future", "scheduled", "uncertain"]},
+        "current_status": {"type": "string", "enum": ["not_yet_effective", "partly_applicable", "already_applicable", "uncertain"]},
+        "launch_comparison": {"type": "string", "enum": ["before", "on", "after", "unknown"]},
+        "preparation_action": {"type": "string", "minLength": 1},
+        "review_date": {"type": "string", "format": "date"},
+        "transition_note": {"type": "string"}
+      }
+    },
+    "fact": {
+      "type": "object", "additionalProperties": false, "required": ["id", "topic", "status", "uncertainty_policy"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "question_key": {"type": "string"}, "topic": {"type": "string"},
+        "value": {},
+        "selection_mode": {"type": "string", "enum": ["single", "multi", "itemized"]},
+        "selected_options": {
+          "type": "array",
+          "items": {"anyOf": [{"type": "string"}, {"$ref": "#/$defs/itemizedSelection"}]},
+          "uniqueItems": true
+        },
+        "selection_conflict": {"type": "boolean"},
+        "verification_owner": {"type": "string"},
+        "required_evidence": {"type": "array", "items": {"type": "string"}},
+        "launch_blocker": {"type": "boolean"},
+        "status": {"type": "string", "enum": ["confirmed", "unknown", "pending_verification", "contradictory", "not_applicable"]},
+        "uncertainty_policy": {"type": "string", "enum": ["strict_default", "conditional", "block_until_verified"]},
+        "strict_assumption": {"type": "boolean"},
+        "source_evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "as_of": {"type": "string", "format": "date"},
+        "notes": {"type": "string"},
+        "fact_context": {"$ref": "#/$defs/factContext"}
+      }
+    },
+    "factContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "事实卡的来源和角色上下文；不得从品牌、客户名或接口名推断法律角色。",
+      "required": [
+        "respondent_identity",
+        "product_operator",
+        "end_user",
+        "model_developer_or_controller",
+        "vendor_or_partner",
+        "jurisdiction",
+        "as_of_time",
+        "source",
+        "certainty"
+      ],
+      "properties": {
+        "respondent_identity": {"type": "string", "minLength": 1},
+        "product_operator": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "end_user": {"type": "string", "minLength": 1},
+        "model_developer_or_controller": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "vendor_or_partner": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "co_brand_or_partner": {"type": "array", "items": {"type": "string"}},
+        "jurisdiction": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "as_of_time": {"type": "string", "minLength": 1},
+        "source": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "certainty": {"type": "string", "enum": ["confirmed", "reported", "uncertain", "conflicting"]},
+        "evidence_name": {"type": "string"},
+        "evidence_date": {"type": "string", "format": "date"},
+        "evidence_location": {"type": "string"}
+      }
+    },
+    "dataFlow": {
+      "type": "object", "additionalProperties": false, "required": ["id", "flow_number", "purpose", "data_categories", "operations", "controller_processor_roles", "subprocessors", "destinations", "remote_access", "transfer_mechanism", "tia_status", "recipient_control", "evidence_ids"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "flow_number": {"type": "string", "minLength": 1}, "name": {"type": "string"}, "purpose": {"type": "string", "minLength": 1},
+        "data_categories": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "special_category_data": {"type": "string", "enum": ["yes", "no", "unknown"]},
+        "subjects": {"type": "array", "items": {"type": "string"}},
+        "operations": {"type": "array", "items": {"type": "string", "enum": ["collect", "use", "train", "fine_tune", "rag", "cache", "disclose", "delete", "monitor", "other"]}},
+        "controller_processor_roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "ccpa_roles": {"type": "array", "items": {"type": "string", "enum": ["business", "service_provider", "contractor", "third_party", "unknown", "not_applicable"]}},
+        "destinations": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "remote_access": {"type": "string", "enum": ["yes", "no", "unknown"]},
+        "subprocessors": {"type": "array", "items": {"type": "string"}},
+        "transfer_mechanism": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["adequacy", "scc", "bcr", "certification", "derogation_art49", "none", "unknown", "not_applicable"]}},
+        "tia_status": {"type": "string", "enum": ["completed", "planned", "not_done", "unknown", "not_applicable"]},
+        "us_sensitive_data_restriction_check": {"type": "string", "enum": ["passed", "failed", "not_done", "unknown", "not_applicable"]},
+        "ccpa_business_threshold_status": {"type": "string", "enum": ["in_scope", "out_of_scope", "unknown", "not_applicable"]},
+        "ccpa_sale_share": {"type": "string", "enum": ["sale", "share", "both", "neither", "unknown", "not_applicable"]},
+        "ccpa_sensitive_personal_information": {"type": "string", "enum": ["yes", "no", "unknown", "not_applicable"]},
+        "government_related_data": {"type": "string", "enum": ["yes", "no", "unknown", "not_applicable"]},
+        "countries_of_concern_link": {"type": "string", "enum": ["yes", "no", "unknown", "not_applicable"]},
+        "transaction_type": {"type": "string", "enum": ["data_sale", "data_license", "service_provision", "investment", "employment", "other", "unknown", "not_applicable"]},
+        "recipient_control": {"type": "string", "enum": ["controller", "processor", "independent_recipient", "joint_controller", "unknown", "not_applicable"]},
+        "exception_review": {"type": "string", "enum": ["passed", "failed", "planned", "not_done", "unknown", "not_applicable"]},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      }
+    },
+    "law": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "jurisdiction", "layer", "source_type", "legal_status", "binding", "normativity_label", "citation", "verification_date"],
+      "properties": {
+        "id": {"type": "string"}, "name": {"type": "string"},
+        "jurisdiction": {"type": "string", "enum": ["CN_MAINLAND", "EU", "US_CALIFORNIA", "US_FEDERAL", "US_OTHER", "GLOBAL"]},
+        "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "source_type": {"type": "string", "enum": ["binding_law", "delegated_act", "implementing_act", "official_guidance", "cop", "voluntary_standard", "proposal", "secondary"]},
+        "legal_status": {"type": "string", "enum": ["current", "future", "expired", "draft", "superseded", "unknown"]},
+        "binding": {"type": "boolean"},
+        "normativity_label": {"type": "string", "enum": ["强制性法规", "欧盟建议的良好实践/解释性材料", "自愿性标准", "提案或草案", "二手资料"]},
+        "citation": {"type": "string"}, "effective_from": {"type": "string", "format": "date"}, "applies_from": {"type": "string", "format": "date"},
+        "verification_date": {"type": "string", "format": "date"}, "source_path": {"type": "string"}, "source_url": {"type": "string", "format": "uri"}, "notes": {"type": "string"}
+      }
+    },
+    "role": {
+      "type": "object", "additionalProperties": false, "required": ["id", "layer", "jurisdiction", "role", "determination", "strict_trigger"],
+      "properties": {
+        "id": {"type": "string"}, "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "jurisdiction": {"type": "string", "enum": ["CN_MAINLAND", "EU", "US_CALIFORNIA", "US_FEDERAL", "US_OTHER", "GLOBAL"]},
+        "role": {"type": "string"}, "determination": {"type": "string", "enum": ["confirmed", "conditional", "unknown", "not_applicable"]},
+        "definition_anchors": {"type": "array", "items": {"type": "string"}}, "duty_anchors": {"type": "array", "items": {"type": "string"}},
+        "fact_ids": {"type": "array", "items": {"type": "string"}}, "strict_trigger": {"type": "boolean"}, "notes": {"type": "string"}
+      }
+    },
+    "obligation": {
+      "type": "object", "additionalProperties": false, "required": ["id", "layer", "jurisdiction", "law_id", "title", "applicability", "requirement", "legal_basis", "effect_type", "normativity", "responsible_role_ids", "effective_date", "consequence", "gap", "completion_criteria", "strict_assumption", "verification_owner", "required_evidence", "launch_blocker", "status", "evidence_required"],
+      "properties": {
+        "id": {"type": "string"}, "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "jurisdiction": {"type": "string", "enum": ["CN_MAINLAND", "EU", "US_CALIFORNIA", "US_FEDERAL", "US_OTHER", "GLOBAL"]}, "law_id": {"type": "string"},
+        "topic": {"type": "string"}, "title": {"type": "string"},
+        "applicability": {"type": "object", "additionalProperties": false, "required": ["status", "uncertainty_treatment"], "properties": {
+          "status": {"type": "string", "enum": ["applicable", "not_applicable", "conditional", "unknown"]},
+          "trigger_fact_ids": {"type": "array", "items": {"type": "string"}}, "trigger_logic": {"type": "string"},
+          "uncertainty_treatment": {"type": "string", "enum": ["none", "strict_default_warning", "conditional_obligation", "block_until_verified"]},
+          "strict_default_applied": {"type": "boolean"}
+        }},
+        "requirement": {"type": "string", "minLength": 1}, "legal_basis": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "effect_type": {"type": "string", "enum": ["binding_law", "eu_good_practice", "legislative_history", "pending_verification"]},
+        "normativity": {"type": "string", "enum": ["mandatory", "good_practice", "informational"]},
+        "responsible_role_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1}, "responsible_role": {"type": "string"}, "effective_from": {"type": "string", "format": "date"}, "effective_date": {"type": "string", "format": "date"}, "application_date": {"type": "string", "format": "date"}, "deadline": {"type": "string"},
+        "consequences": {"type": "array", "items": {"type": "string"}}, "consequence": {"type": "string", "minLength": 1}, "gap": {"type": "string", "minLength": 1}, "completion_criteria": {"type": "string", "minLength": 1}, "strict_assumption": {"type": "boolean"}, "verification_owner": {"type": "string", "minLength": 1}, "required_evidence": {"type": "array", "items": {"type": "string"}, "minItems": 1}, "launch_blocker": {"type": "boolean"}, "status": {"type": "string", "enum": ["not_started", "in_progress", "complete", "blocked", "needs_verification", "not_applicable"]},
+        "evidence_required": {"type": "array", "items": {"type": "string"}}, "evidence": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}
+      }
+    },
+    "risk": {
+      "type": "object", "additionalProperties": false, "required": ["id", "layer", "category", "severity", "status", "condition", "strict_default_applied", "blocking"],
+      "properties": {
+        "id": {"type": "string"}, "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "category": {"type": "string"}, "severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info", "unknown"]},
+        "likelihood": {"type": "string", "enum": ["high", "medium", "low", "unknown"]}, "status": {"type": "string", "enum": ["open", "mitigated", "accepted", "unknown"]},
+        "condition": {"type": "string"}, "basis": {"type": "array", "items": {"type": "string"}}, "impacted_law_ids": {"type": "array", "items": {"type": "string"}},
+        "strict_default_applied": {"type": "boolean"}, "blocking": {"type": "boolean"}, "rationale": {"type": "string"}
+      }
+    },
+    "action": {
+      "type": "object", "additionalProperties": false, "required": ["id", "action", "priority", "owner", "status", "acceptance_criteria", "blocks_launch"],
+      "properties": {
+        "id": {"type": "string"}, "action": {"type": "string"}, "priority": {"type": "string", "enum": ["P0", "P1", "P2", "P3"]},
+        "layer": {"type": "string", "enum": ["layer1_ai_transparency", "layer2_eu_ai_act_system_model", "layer3_dataflow_adjacent"]},
+        "owner": {"type": "string"}, "due_date": {"type": "string", "format": "date"}, "status": {"type": "string", "enum": ["open", "in_progress", "done", "blocked", "not_applicable"]},
+        "related_obligation_ids": {"type": "array", "items": {"type": "string"}}, "related_risk_ids": {"type": "array", "items": {"type": "string"}},
+        "acceptance_criteria": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}, "blocks_launch": {"type": "boolean"}, "unknown_resolution": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "description", "verification_status"],
+      "properties": {
+        "id": {"type": "string"}, "type": {"type": "string", "enum": ["contract", "DPA", "SCC", "TIA", "DPIA", "technical_documentation", "model_card", "data_map", "policy", "test_result", "registration", "incident_record", "other"]},
+        "description": {"type": "string"}, "location": {"type": "string"}, "owner": {"type": "string"}, "verification_status": {"type": "string", "enum": ["verified", "unverified", "expired", "not_available"]},
+        "verified_at": {"type": "string", "format": "date"}, "expires_at": {"type": "string", "format": "date"}, "notes": {"type": "string"}
+      }
+    },
+    "questionnaireResponse": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question_key", "mode", "selected"],
+      "properties": {
+        "question_key": {"type": "string", "minLength": 1},
+        "revision": {
+          "type": "boolean",
+          "description": "明确的更正行标记；为 true 时替代同一 question_key 的旧答案，旧行仍保留在审计历史中。"
+        },
+        "row_number": {
+          "type": "integer",
+          "description": "对应业务自测表的稳定行号；文本修订使用‘第N行改为’时保留。"
+        },
+        "source": {
+          "type": "string",
+          "description": "答案来源（例如 json、text、markdown 或 text-revision），仅用于审计，不参与法律判断。"
+        },
+        "mode": {"type": "string", "enum": ["single", "multi", "itemized"]},
+        "selected": {
+          "type": "array",
+          "items": {"anyOf": [{"type": "string"}, {"$ref": "#/$defs/itemizedSelection"}]},
+          "uniqueItems": true
+        },
+        "answer_text": {"type": "string"},
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {"type": "string"},
+              {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+              {"$ref": "#/$defs/questionnaireFieldAnswer"},
+              {"type": "null"}
+            ]
+          }
+        },
+        "conflict_status": {"type": "string", "enum": ["none", "unresolved", "resolved"]},
+        "correction_note": {"type": "string"},
+        "fact_context": {"$ref": "#/$defs/factContext"}
+      }
+    },
+    "itemizedSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "value"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "value": {
+          "anyOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true}
+          ]
+        },
+        "mode": {"type": "string", "enum": ["single", "multi"]},
+        "note": {"type": "string"},
+        "evidence": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "questionnaireFieldAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true}
+          ]
+        },
+        "mode": {"type": "string", "enum": ["single", "multi"]},
+        "note": {"type": "string"},
+        "evidence": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}
